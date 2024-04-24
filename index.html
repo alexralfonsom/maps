@@ -121,9 +121,36 @@
                     position: 'top-right'
                 });
 
+                //Define an HTML template for a custom popup content laypout.
+                var popupTemplate = '<div class="customInfobox"><div class="name">{name}</div>{description}</div>';
+
                 //Create a data source and add it to the map.
                 datasource = new atlas.source.DataSource();
                 map.sources.add(datasource);
+                drawBasics();
+
+                //Create a layer to render point data.
+                var symbolLayer = new atlas.layer.SymbolLayer(datasource);
+
+                //Add the polygon and line the symbol layer to the map.
+                map.layers.add(symbolLayer);
+                //Create a popup but leave it closed so we can update it and display it later.
+
+                //Create a heatmap and add it to the map.
+                map.layers.add(new atlas.layer.HeatMapLayer(datasource, null, {
+                    radius: [
+                        'interpolate',
+                        ['exponential', 4],
+                        ['zoom'],
+                        //For all zoom levels 10 or lower, set the radius to 2 pixels.
+                        10, 2,
+
+                        //Between zoom level 10 and 22, exponentially scale the radius from 2 pixels to 50000 pixels.
+                        22, 50000
+                    ]
+                }), 'labels');
+
+
 
             });
 
@@ -140,6 +167,45 @@
             lineLayer = new atlas.layer.LineLayer(datasource);
             lineLayer.setOptions(lineOptions);
             map.layers.add(lineLayer);
+
+            drawBasics();
+
+            const distance = haversine(cityOrigin, cityPripiat);
+            document.getElementById('resultDistance').value = distance;
+
+        }
+
+        function drawBasics(){
+
+            datasource.add(new atlas.data.Feature(new atlas.data.Point([cityPripiat.lon,cityPripiat.lat]), {
+                name: 'Pripyat',
+                description: 'Chernobyl'
+            }));
+
+        }
+
+        function haversine(p1, p2){
+            Number.prototype.toRad = function() {
+                return this * Math.PI / 180;
+            }
+
+            var lat1 = p1.lat;
+            var lon1 = p1.lon;
+
+            var lat2 = p2.lat;
+            var lon2 = p2.lon;
+
+            var R = 6371; // #radius of Earth (KM)
+            const dLat = (p2.lat - p1.lat).toRad();
+            const dLon = (p2.lon - p1.lon).toRad();
+
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1.toRad()) * Math.cos(lat2.toRad()) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return (R * c).toFixed(2);
+
         }
 
         function openTab(elm, tabName) {
@@ -273,9 +339,9 @@
     <div id="StyleOptionsresultados" class="tabcontent" style="display:block;">
         <table>
             <tr title="An integer specifying the minimum zoom level to render the layer at.">
-                <td>Distancia aproximada:</td>
+                <td>Distancia aproximada: Km.</td>
                 <td>
-                    <input type="text" id="resultDistance"/>
+                    <input type="text" readonly id="resultDistance"/>
                 </td>
             </tr>
             <tr title="An integer specifying the maximum zoom level to render the layer at.">
@@ -287,7 +353,7 @@
             <tr title="Specifies if the layer is visible or not.">
                 <td>Calculo de exposición:</td>
                 <td>
-                    <input type="text" id="resultExposition"/>
+                    <input type="text" readonly id="resultExposition"/>
                 </td>
             </tr>
         </table>
