@@ -41,4 +41,4 @@ jobs:
         uses: Azure/webapps-deploy@v3.0.1
         with: 
           app-name: fisicachernobyl
-          publish-profile: fisicachernobyl_PublishSettings
+          publish-profile: ${{ secrets.fisicachernobyl_PublishSettings }}
