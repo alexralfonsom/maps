@@ -38,6 +38,9 @@ jobs:
         with:
           # Upload entire repository
           path: '.'
-      - name: Deploy to GitHub Pages
+      - name: Deploy to Azure Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: Azure/webapps-deploy@v3.0.1
+        with: 
+          app-name: fisicachernobyl
+          publish-profile: fisicachernobyl.PublishSettings
