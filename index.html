@@ -1,0 +1,308 @@
+﻿﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Mapa Calculo Chernobyl</title>
+
+    <meta charset="utf-8"/>
+    <link rel="shortcut icon" href="/favicon.ico"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="description" content="This sample shows how the different options of the line layer affect rendering."/>
+    <meta name="keywords" content="Microsoft maps, map, gis, API, SDK, line, linestring, polyline, layer, linelayer"/>
+    <meta name="author" content="Microsoft Azure Maps"/>
+    <meta name="version" content="1.0"/>
+    <meta name="screenshot" content="screenshot.jpg"/>
+
+    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
+    <link href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" rel="stylesheet"/>
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+
+    <!-- Add references to the Azure Maps Map Drawing Tools JavaScript and CSS files. -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css" type="text/css" />
+    <script src="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.js"></script>
+
+    <!-- Add references to the Azure Maps Selection Control module JavaScript and CSS files. -->
+    <link  rel="stylesheet" href="/lib/azure-maps-selection-control.min.css" type="text/css"/>
+    <script src="/lib/azure-maps-selection-control.min.js"></script>
+
+    <!-- Load JQuery UI -->
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
+
+    <script src="/lib/clipboard.min.js"></script>
+
+    <script>
+        var map, datasource, lineLayer, defaultOptions;
+        var cityPripiat = {
+            lon:30.046425,
+            lat: 51.406681
+        };
+        var lineOptions =  {
+            strokeColor: "#FF0000",
+            strokeWidth: 6
+        };
+        var addresssGeocodeServiceUrlTemplate = 'https://atlas.microsoft.com/search/address/json?subscription-key={key}&typeahead=true&api-version=1&query={query}&language={language}&view=Auto';
+        var subscriptionKey= 's-vCxsmVO8UJ1cOkA5Cz1D-4Lguj6eRS8PUvf44tlho';
+        let cityOrigin = "";
+        $( function() {
+            $("#searchBox").autocomplete({
+                minLength: 3,   //Don't ask for suggestions until atleast 3 characters have been typed. This will reduce costs by not making requests that will likely not have much relevance.
+                source: function (request, response) {
+
+                    //Create a URL to the Azure Maps search service to perform the address search.
+                    var requestUrl = addresssGeocodeServiceUrlTemplate.replace('{query}', encodeURIComponent(request.term))
+                        .replace('{key}', subscriptionKey)
+                        .replace('{language}', 'en-US')
+                        .replace('{countrySet}', 'US'); //A comma seperated string of country codes to limit the suggestions to.
+
+                    //Proces the request.
+                    fetch(requestUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Content-Type': 'application/json; charset=utf-8'
+                        }
+                    }).then(r => r.json()).then(data => {
+                        response(data.results);
+                    });
+                },
+                select: function (event, ui) {
+                    //When a suggestion has been selected.
+                    var selection = ui.item;
+
+                    //Populate the address textbox values.
+                    document.getElementById('cityTbx').value = selection.address.municipality || '';
+                    document.getElementById('stateTbx').value = selection.address.countrySubdivision || '';
+                    document.getElementById('countryTbx').value = selection.address.countryCodeISO3 || '';
+                    cityOrigin = selection.position;
+                    console.log(selection);
+                }
+            }).autocomplete("instance")._renderItem = function (ul, item) {
+                //Format the displayed suggestion to show the formatted suggestion string.
+                var suggestionLabel = item.address.freeformAddress;
+
+                if (item.poi && item.poi.name) {
+                    suggestionLabel = item.poi.name + ' (' + suggestionLabel + ')';
+                }
+
+                return $("<li>")
+                    .append("<a>" + suggestionLabel + "</a>")
+                    .appendTo(ul);
+            };
+        });
+
+        function GetMap() {
+            //Initialize a map instance.
+            map = new atlas.Map('myMap', {
+                center: [-40, 40],
+                zoom: 2,
+                //Set the language of the map.
+                language: 'en-US',
+                view: 'Auto',
+                //Add authentication details for connecting to Azure Maps.
+                authOptions: {
+                    //Use Azure Active Directory authentication.
+                    authType: 'subscriptionKey',
+                    clientId: 'f9b3a4ad-4a54-46b7-9530-db429fe262b0',
+                    subscriptionKey: 's-vCxsmVO8UJ1cOkA5Cz1D-4Lguj6eRS8PUvf44tlho',//Your Azure Maps client id for accessing your Azure Maps account.
+                    getToken: function (resolve, reject, map) {
+                        //URL to your authentication service that retrieves an Azure Active Directory Token.
+                        var tokenServiceUrl = "https://samples.azuremaps.com/api/GetAzureMapsToken";
+
+                        fetch(tokenServiceUrl).then(r => r.text()).then(token => resolve(token));
+                    }
+
+                    //Alternatively, use an Azure Maps key. Get an Azure Maps key at https://azure.com/maps. NOTE: The primary key should be used as the key.
+                    //authType: 'subscriptionKey',
+                    //subscriptionKey: '[YOUR_AZURE_MAPS_KEY]'
+                }
+            });
+
+            //Wait until the map resources are ready.
+            map.events.add('ready', function () {
+
+                //Create a style control and add it to the map.
+                map.controls.add(new atlas.control.StyleControl({
+                    style: 'dark'
+                }), {
+                    position: 'top-right'
+                });
+
+                //Create a data source and add it to the map.
+                datasource = new atlas.source.DataSource();
+                map.sources.add(datasource);
+
+            });
+
+            new ClipboardJS('.copyBtn');
+        }
+
+        function drawLine(){
+
+            datasource.clear();
+            //Add line to data source.
+            datasource.add(new atlas.data.LineString([[cityOrigin.lon,cityOrigin.lat],[cityPripiat.lon,cityPripiat.lat]]));
+
+            //Create a layer to render the line data.
+            lineLayer = new atlas.layer.LineLayer(datasource);
+            lineLayer.setOptions(lineOptions);
+            map.layers.add(lineLayer);
+        }
+
+        function openTab(elm, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            elm.className += " active";
+        }
+    </script>
+    <style>
+        #myMap {
+            position: relative;
+            width: calc(100% - 375px);
+            min-width: 290px;
+            height: 600px;
+            float: left;
+        }
+
+        .sidePanel {
+            width: 325px;
+            height: 580px;
+            float: left;
+            margin-right: 10px;
+        }
+
+        #CodeOutput {
+            width: 300px;
+            height: 420px;
+            overflow-y: auto;
+        }
+
+        .copyBtn {
+            float: right;
+        }
+
+        table td:nth-of-type(1) {
+            width: 120px;
+        }
+
+        table td:nth-of-type(2) {
+            width: 200px;
+        }
+
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 6px 8px;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .tab button:hover {
+            background-color: #ddd;
+        }
+
+        .tab button.active {
+            background-color: #ccc;
+        }
+
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        input[readOnly] {
+            background: lightgray !important;
+        }
+
+    </style>
+</head>
+<body onload="GetMap()">
+<fieldset class="sidePanel">
+    <legend>Calcular probabilidad de contaminación</legend>
+    This sample shows how the different options of the line layer affect rendering.
+    <br/><br/>
+
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(this, 'StyleOptions')">Consultar datos</button>
+    </div>
+
+    <div id="StyleOptions" class="tabcontent" style="display:block;">
+        <table>
+            <tr title="An integer specifying the minimum zoom level to render the layer at.">
+                <td>Ciudad Origen:</td>
+                <td>
+                    <input type="text" id="searchBox"/>
+                </td>
+            </tr>
+            <tr title="An integer specifying the maximum zoom level to render the layer at.">
+                <td></td>
+                <td>
+                </td>
+            </tr>
+            <tr title="Specifies if the layer is visible or not.">
+                <td>Ciudad Destino:</td>
+                <td>
+                    Pripyat'
+                </td>
+            </tr>
+        </table>
+
+        <table class="addressForm">
+            <tr><td>Country:</td><td><input type="text" readonly id="countryTbx" /></td></tr>
+            <tr><td>City:</td><td><input type="text" readonly id="cityTbx" /></td></tr>
+            <tr><td>State:</td><td><input type="text" readonly id="stateTbx" /></td></tr>
+            <tr><td></td><td><button class="" onclick="drawLine()">Calcular</button></td></tr>
+
+        </table>
+    </div>
+
+    <div class="tab">
+        <button class="tablinks active">Resultados</button>
+    </div>
+    <div id="StyleOptionsresultados" class="tabcontent" style="display:block;">
+        <table>
+            <tr title="An integer specifying the minimum zoom level to render the layer at.">
+                <td>Distancia aproximada:</td>
+                <td>
+                    <input type="text" id="resultDistance"/>
+                </td>
+            </tr>
+            <tr title="An integer specifying the maximum zoom level to render the layer at.">
+                <td></td>
+                <td>
+
+                </td>
+            </tr>
+            <tr title="Specifies if the layer is visible or not.">
+                <td>Calculo de exposición:</td>
+                <td>
+                    <input type="text" id="resultExposition"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</fieldset>
+
+<div id="myMap"></div>
+</body>
+</html>
