@@ -18,11 +18,12 @@
     <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
 
     <!-- Add references to the Azure Maps Map Drawing Tools JavaScript and CSS files. -->
-    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css" type="text/css" />
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.css"
+          type="text/css"/>
     <script src="https://atlas.microsoft.com/sdk/javascript/drawing/1/atlas-drawing.min.js"></script>
 
     <!-- Add references to the Azure Maps Selection Control module JavaScript and CSS files. -->
-    <link  rel="stylesheet" href="/lib/azure-maps-selection-control.min.css" type="text/css"/>
+    <link rel="stylesheet" href="/lib/azure-maps-selection-control.min.css" type="text/css"/>
     <script src="/lib/azure-maps-selection-control.min.js"></script>
 
     <!-- Load JQuery UI -->
@@ -35,17 +36,17 @@
     <script>
         var map, datasource, lineLayer, defaultOptions;
         var cityPripiat = {
-            lon:30.046425,
-            lat: 51.406681
+            lon: 30.0876726,
+            lat: 51.389721
         };
-        var lineOptions =  {
+        var lineOptions = {
             strokeColor: "#FF0000",
             strokeWidth: 6
         };
         var addresssGeocodeServiceUrlTemplate = 'https://atlas.microsoft.com/search/address/json?subscription-key={key}&typeahead=true&api-version=1&query={query}&language={language}&view=Auto';
-        var subscriptionKey= 's-vCxsmVO8UJ1cOkA5Cz1D-4Lguj6eRS8PUvf44tlho';
+        var subscriptionKey = 's-vCxsmVO8UJ1cOkA5Cz1D-4Lguj6eRS8PUvf44tlho';
         let cityOrigin = "";
-        $( function() {
+        $(function () {
             $("#searchBox").autocomplete({
                 minLength: 3,   //Don't ask for suggestions until atleast 3 characters have been typed. This will reduce costs by not making requests that will likely not have much relevance.
                 source: function (request, response) {
@@ -140,16 +141,17 @@
                 map.layers.add(new atlas.layer.HeatMapLayer(datasource, null, {
                     radius: [
                         'interpolate',
-                        ['exponential', 4],
+                        ['exponential', 2],
                         ['zoom'],
                         //For all zoom levels 10 or lower, set the radius to 2 pixels.
-                        10, 2,
+                        10, 30,
 
                         //Between zoom level 10 and 22, exponentially scale the radius from 2 pixels to 50000 pixels.
                         22, 50000
-                    ]
+                    ],
+                    intensity: 5,
+                    weight: 1
                 }), 'labels');
-
 
 
             });
@@ -157,11 +159,11 @@
             new ClipboardJS('.copyBtn');
         }
 
-        function drawLine(){
+        function drawLine() {
 
             datasource.clear();
             //Add line to data source.
-            datasource.add(new atlas.data.LineString([[cityOrigin.lon,cityOrigin.lat],[cityPripiat.lon,cityPripiat.lat]]));
+            datasource.add(new atlas.data.LineString([[cityOrigin.lon, cityOrigin.lat], [cityPripiat.lon, cityPripiat.lat]]));
 
             //Create a layer to render the line data.
             lineLayer = new atlas.layer.LineLayer(datasource);
@@ -175,17 +177,17 @@
 
         }
 
-        function drawBasics(){
+        function drawBasics() {
 
-            datasource.add(new atlas.data.Feature(new atlas.data.Point([cityPripiat.lon,cityPripiat.lat]), {
+            datasource.add(new atlas.data.Feature(new atlas.data.Point([cityPripiat.lon, cityPripiat.lat]), {
                 name: 'Pripyat',
                 description: 'Chernobyl'
             }));
 
         }
 
-        function haversine(p1, p2){
-            Number.prototype.toRad = function() {
+        function haversine(p1, p2) {
+            Number.prototype.toRad = function () {
                 return this * Math.PI / 180;
             }
 
@@ -199,9 +201,9 @@
             const dLat = (p2.lat - p1.lat).toRad();
             const dLon = (p2.lon - p1.lon).toRad();
 
-            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.cos(lat1.toRad()) * Math.cos(lat2.toRad()) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return (R * c).toFixed(2);
@@ -287,6 +289,7 @@
             border: 1px solid #ccc;
             border-top: none;
         }
+
         input[readOnly] {
             background: lightgray !important;
         }
@@ -325,10 +328,24 @@
         </table>
 
         <table class="addressForm">
-            <tr><td>País:</td><td><input type="text" readonly id="countryTbx" /></td></tr>
-            <tr><td>Ciudad:</td><td><input type="text" readonly id="cityTbx" /></td></tr>
-            <tr><td>Estado:</td><td><input type="text" readonly id="stateTbx" /></td></tr>
-            <tr><td></td><td><button class="" onclick="drawLine()">Calcular</button></td></tr>
+            <tr>
+                <td>País:</td>
+                <td><input type="text" readonly id="countryTbx"/></td>
+            </tr>
+            <tr>
+                <td>Ciudad:</td>
+                <td><input type="text" readonly id="cityTbx"/></td>
+            </tr>
+            <tr>
+                <td>Estado:</td>
+                <td><input type="text" readonly id="stateTbx"/></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>
+                    <button class="" onclick="drawLine()">Calcular</button>
+                </td>
+            </tr>
 
         </table>
     </div>
