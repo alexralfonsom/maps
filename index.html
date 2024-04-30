@@ -43,7 +43,7 @@
             strokeColor: "#FF0000",
             strokeWidth: 6
         };
-        var addresssGeocodeServiceUrlTemplate = 'https://atlas.microsoft.com/search/address/json?subscription-key={key}&typeahead=true&api-version=1&query={query}&language={language}&view=Auto';
+        var addresssGeocodeServiceUrlTemplate = 'https://atlas.microsoft.com/search/address/json?subscription-key={key}&typeahead=true&api-version=1&query={query}&language={language}&view=Auto&limit=20';
         var subscriptionKey = 's-vCxsmVO8UJ1cOkA5Cz1D-4Lguj6eRS8PUvf44tlho';
         let cityOrigin = "";
         $(function () {
@@ -54,8 +54,7 @@
                     //Create a URL to the Azure Maps search service to perform the address search.
                     var requestUrl = addresssGeocodeServiceUrlTemplate.replace('{query}', encodeURIComponent(request.term))
                         .replace('{key}', subscriptionKey)
-                        .replace('{language}', 'en-US')
-                        .replace('{countrySet}', 'US'); //A comma seperated string of country codes to limit the suggestions to.
+                        .replace('{language}', 'en-US');
 
                     //Proces the request.
                     fetch(requestUrl, {
@@ -64,7 +63,20 @@
                             'Content-Type': 'application/json; charset=utf-8'
                         }
                     }).then(r => r.json()).then(data => {
-                        response(data.results);
+                        let lstCiudades = [];
+                        data.results.forEach(function (item){
+                            if (item.type === "Geography" && item.entityType === "Municipality") {
+                                lstCiudades.push({
+                                    municipality : item.address.municipality,
+                                    countrySubdivision : item.address.countrySubdivision,
+                                    country : item.address.country,
+                                    position : item.position
+                                });
+                            }
+                        });
+
+                        // console.log(data.results);
+                        response(lstCiudades);
                     });
                 },
                 select: function (event, ui) {
@@ -72,19 +84,15 @@
                     var selection = ui.item;
 
                     //Populate the address textbox values.
-                    document.getElementById('cityTbx').value = selection.address.municipality || '';
-                    document.getElementById('stateTbx').value = selection.address.countrySubdivision || '';
-                    document.getElementById('countryTbx').value = selection.address.countryCodeISO3 || '';
+                    document.getElementById('cityTbx').value = selection.municipality || '';
+                    document.getElementById('stateTbx').value = selection.countrySubdivision || '';
+                    document.getElementById('countryTbx').value = selection.country || '';
                     cityOrigin = selection.position;
                     console.log(selection);
                 }
             }).autocomplete("instance")._renderItem = function (ul, item) {
                 //Format the displayed suggestion to show the formatted suggestion string.
-                var suggestionLabel = item.address.freeformAddress;
-
-                if (item.poi && item.poi.name) {
-                    suggestionLabel = item.poi.name + ' (' + suggestionLabel + ')';
-                }
+                var suggestionLabel = `${item.municipality}, ${item.countrySubdivision}, ${item.country}`;
 
                 return $("<li>")
                     .append("<a>" + suggestionLabel + "</a>")
@@ -156,11 +164,15 @@
 
             });
 
-            new ClipboardJS('.copyBtn');
+            // new ClipboardJS('.copyBtn');
+        }
+
+        async function draw() {
+            await clearMap();
+            //drawLine();
         }
 
         function drawLine() {
-
             datasource.clear();
             //Add line to data source.
             datasource.add(new atlas.data.LineString([[cityOrigin.lon, cityOrigin.lat], [cityPripiat.lon, cityPripiat.lat]]));
@@ -174,7 +186,17 @@
 
             const distance = haversine(cityOrigin, cityPripiat);
             document.getElementById('resultDistance').value = distance;
+            document.getElementById('resultExposition').value = calculateExposition(distance);
+        }
 
+        function calculateExposition(distance) {
+            if (distance >= 150){
+                return "0%";
+            }
+            else{
+                let a = (((distance*1)/150)*100).toFixed(2);
+                return a+"%";
+            }
         }
 
         function drawBasics() {
@@ -298,8 +320,11 @@
 </head>
 <body onload="GetMap()">
 <fieldset class="sidePanel">
-    <legend>Calcular probabilidad de contaminación</legend>
-    This sample shows how the different options of the line layer affect rendering.
+    <legend>Calcular probabilidad de contaminación </legend>
+    TECA Física
+    <br/>
+    <br/>
+    Este es un cálculo aproximado de exposición radioctiva desde la planta de Pripyat'
     <br/><br/>
 
     <div class="tab">
@@ -319,15 +344,6 @@
                 <td>
                 </td>
             </tr>
-            <tr title="Specifies if the layer is visible or not.">
-                <td>Ciudad Destino:</td>
-                <td>
-                    Pripyat'
-                </td>
-            </tr>
-        </table>
-
-        <table class="addressForm">
             <tr>
                 <td>País:</td>
                 <td><input type="text" readonly id="countryTbx"/></td>
@@ -340,13 +356,18 @@
                 <td>Estado:</td>
                 <td><input type="text" readonly id="stateTbx"/></td>
             </tr>
+            <tr title="Specifies if the layer is visible or not.">
+                <td>Ciudad Destino:</td>
+                <td>
+                    Pripyat'
+                </td>
+            </tr>
             <tr>
                 <td></td>
                 <td>
-                    <button class="" onclick="drawLine()">Calcular</button>
+                    <button class="" onclick="drawLine();return false;">Calcular</button>
                 </td>
             </tr>
-
         </table>
     </div>
 
@@ -375,6 +396,29 @@
             </tr>
         </table>
     </div>
+
+    <div class="tab">
+        <button class="tablinks active">Presenta:</button>
+    </div>
+    <div id="StyleOptionsresultados" class="tabcontent" style="display:block;">
+    <table>
+        <tr title="An integer specifying the minimum zoom level to render the layer at.">
+            <td>Juan Felipe Alfonso</td>
+            <td>
+                Gabriel Garzon
+            </td>
+        </tr>
+        <tr title="Specifies if the layer is visible or not.">
+            <td>
+                Jairo Herazo
+            </td>
+            <td>
+                Nicolas Guevara
+            </td>
+        </tr>
+    </table>
+    </div>
+
 
 </fieldset>
 
